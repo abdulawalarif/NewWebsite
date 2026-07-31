@@ -1,40 +1,32 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
-  // Mock data - in production this would come from the backend analysis service
-  const tests = [
-    {
-      id: 'test-001',
-      timestamp: '2026-04-26T06:00:00Z',
-      persona: 'cooperative_clear',
-      scenario: 'takeaway_simple',
-      difficulty: 1,
-      outcome: 'passed' as const,
-      turns: 5,
-      callerAudioUrl: '/audio/demos/test-audio/test-session-001.raw',
-      agentAudioUrl: '/audio/demos/test-audio/test-session-001.raw',
-      summary: 'Order confirmed: Pizza Margherita, Coca-Cola. Pickup: 18:30 at counter.',
-    },
-    {
-      id: 'test-002',
-      timestamp: '2026-04-26T05:30:00Z',
-      persona: 'cooperative_clear',
-      scenario: 'wine_availability',
-      difficulty: 1,
-      outcome: 'passed' as const,
-      turns: 3,
-      callerAudioUrl: '/audio/demos/de-hotel.mp3',
-      agentAudioUrl: '/audio/demos/de-hotel.mp3',
-      summary: 'Wine inquiry: Riesling 2020 in stock. Two bottles reserved.',
-    },
-  ];
+const BACKEND_URL = process.env.VOICE_AGENT_ORIGIN || 'http://127.0.0.1:8080';
 
-  return NextResponse.json(
-    { tests, total: tests.length },
-    {
-      headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
-      },
-    }
-  );
+export async function GET() {
+  try {
+    const response = await fetch(
+      `${BACKEND_URL}/api/member/validation-tests?limit=10`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+    const data = await response.json();
+    return NextResponse.json(
+      { tests: data.tests || [], total: data.total || 0 },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        },
+      }
+    );
+  } catch (error) {
+    console.error('Failed to fetch validation tests from backend:', error);
+    return NextResponse.json(
+      { tests: [], total: 0 },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=30',
+        },
+      }
+    );
+  }
 }

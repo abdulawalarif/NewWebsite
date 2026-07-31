@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { AgentConfig } from "@/types/onboarding";
 import DashboardLogoutButton from "./logout-button";
 import AudioValidationSection from "./audio-validation-section";
+import LastCallsSection from "./last-calls-section";
+import TestCallButton from "./test-call-button";
 
 export const metadata: Metadata = {
   title: "Dashboard – Sailly",
@@ -140,24 +142,7 @@ export default async function DashboardPage({
         )}
 
         {/* Last calls card */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-900">Letzte Anrufe</h3>
-            {agentConfig?.status === "active" && (
-              <span className="text-xs text-slate-400">Dieser Monat: —</span>
-            )}
-          </div>
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-              <span className="text-xl">📋</span>
-            </div>
-            <p className="text-sm text-slate-500">
-              {agentConfig?.status === "active"
-                ? "Erste Daten erscheinen nach Ihrem ersten Anruf."
-                : "Anrufdaten werden hier erscheinen, sobald Ihr Assistent aktiv ist."}
-            </p>
-          </div>
-        </div>
+        <LastCallsSection agentActive={agentConfig?.status === "active"} />
         {/* Audio Validation Tests */}
         <AudioValidationSection />
 
@@ -173,13 +158,11 @@ export default async function DashboardPage({
             <p className="text-sm text-slate-500 mb-3">
               Testen Sie Ihren Assistenten mit einem simulierten Anruf.
             </p>
-            {agentConfig?.status === "active" ? (
-              <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:underline cursor-pointer">
-                Test starten →
-              </span>
-            ) : (
-              <span className="text-sm text-slate-400">Verfügbar nach Aktivierung</span>
-            )}
+            <TestCallButton
+              agentActive={agentConfig?.status === "active"}
+              phoneNumber={agentConfig?.phone_number ?? undefined}
+              locale={locale}
+            />
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
