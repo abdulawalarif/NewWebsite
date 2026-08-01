@@ -1,3 +1,5 @@
+import type { PricingPlanKey } from "@/lib/pricing-plans";
+
 export interface CustomerProfile {
   id: string;
   email: string;
@@ -7,9 +9,33 @@ export interface CustomerProfile {
   company_name: string | null;
   phone: string | null;
   role: "customer" | "admin";
+  /** Plan chosen at register (from ?plan=); survives OAuth via cookie + this column. */
+  selected_plan: PricingPlanKey | null;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
+}
+
+export type SubscriptionStatus =
+  | "trialing"
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "unpaid"
+  | "incomplete";
+
+export interface Subscription {
+  id: string;
+  user_id: string;
+  plan_key: PricingPlanKey;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  status: SubscriptionStatus;
+  current_period_end: string | null;
+  trial_end: string | null;
+  cancel_at_period_end: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BusinessHours {

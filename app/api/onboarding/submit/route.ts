@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isMockAuth } from "@/lib/auth/mode";
+import {
+  encodeMockSession,
+  MOCK_COOKIE_OPTIONS,
+  MOCK_SESSION_COOKIE,
+  parseMockSession,
+} from "@/lib/auth/mock/session";
+import { cookies } from "next/headers";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
 
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "Nicht angemeldet." }, { status: 401 });
   }
@@ -45,7 +56,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    // Clear draft after successful submit
+    await supabase.from("onboarding_drafts").delete().eq("user_id", user.id);
+
+    const res = NextResponse.json({ success: true });
+
+    // Mock: flip onboarded bit in session cookie so Edge middleware sees it
+    if (isMockAuth()) {
+      const cookieStore = await cookies();
+      const current = parseMockSession(
+        cookieStore.get(MOCK_SESSION_COOKIE)?.value
+      );
+      const userId = current.userId ?? user.id;
+      res.cookies.set(
+        MOCK_SESSION_COOKIE,
+        encodeMockSession(userId, true),
+        MOCK_COOKIE_OPTIONS
+      );
+    }
+
+    return res;
   } catch (err) {
     console.error("onboarding submit unexpected error:", err);
     return NextResponse.json({ error: "Serverfehler." }, { status: 500 });

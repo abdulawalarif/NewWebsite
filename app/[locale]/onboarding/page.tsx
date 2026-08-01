@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import OnboardingClient from "./OnboardingClient";
 
 export const metadata: Metadata = {
@@ -12,5 +13,15 @@ export default async function OnboardingPage({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  return <OnboardingClient locale={locale} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[calc(100dvh-5rem)] flex items-center justify-center text-slate-500 text-sm">
+          Laden…
+        </div>
+      }
+    >
+      <OnboardingClient locale={locale} />
+    </Suspense>
+  );
 }

@@ -83,6 +83,9 @@ export default function OnboardingClient({ locale }: Props) {
   const [hasDraft, setHasDraft] = useState(false);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   // Step 1
   const [companyName, setCompanyName] = useState("");
@@ -137,10 +140,18 @@ export default function OnboardingClient({ locale }: Props) {
       if (!draft?.company_name) {
         const { data: profile } = await supabase
           .from("customer_profiles")
-          .select("company_name")
+          .select("company_name, selected_plan")
           .eq("id", user.id)
           .maybeSingle();
         if (profile?.company_name) setCompanyName(profile.company_name);
+        if (profile?.selected_plan) setSelectedPlan(profile.selected_plan);
+      } else {
+        const { data: profile } = await supabase
+          .from("customer_profiles")
+          .select("selected_plan")
+          .eq("id", user.id)
+          .maybeSingle();
+        if (profile?.selected_plan) setSelectedPlan(profile.selected_plan);
       }
 
       setLoading(false);
@@ -290,6 +301,28 @@ export default function OnboardingClient({ locale }: Props) {
     });
   };
 
+  const handleCheckout = async () => {
+    setCheckoutError("");
+    setCheckoutLoading(true);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale, plan: selectedPlan }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        setCheckoutError(data.error ?? "Checkout fehlgeschlagen.");
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setCheckoutError("Netzwerkfehler. Bitte erneut versuchen.");
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-[calc(100dvh-5rem)] flex items-center justify-center">
@@ -299,6 +332,11 @@ export default function OnboardingClient({ locale }: Props) {
   }
 
   if (submitted) {
+    const checkoutable =
+      selectedPlan === "starters" ||
+      selectedPlan === "main" ||
+      selectedPlan === "president_suite";
+
     return (
       <div className="min-h-[calc(100dvh-5rem)] flex flex-col items-center justify-center px-4 py-12 bg-gradient-soft">
         <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl border border-slate-100 p-8 text-center">
@@ -307,16 +345,17 @@ export default function OnboardingClient({ locale }: Props) {
           </div>
           <h1 className="text-2xl font-bold text-slate-900 mb-2">Ihr Assistent ist eingerichtet!</h1>
           <p className="text-slate-600 mb-6 leading-relaxed">
-            Wir aktivieren Ihren KI-Telefonassistenten. Das dauert in der Regel ca. 24 Stunden.
+            Als Nächstes schließen Sie die Zahlung ab — danach aktivieren wir Ihren KI-Telefonassistenten
+            (in der Regel ca. 24 Stunden).
           </p>
           <div className="bg-slate-50 rounded-xl p-5 mb-6 text-left space-y-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">
-              Ihr Assistent ist in ca. 24h aktiv
+              Nächste Schritte
             </p>
             {[
               { label: "Konfiguration gespeichert", done: true },
+              { label: "Zahlung / Abo abschließen", done: false },
               { label: "Rufweiterleitung einrichten", done: false },
-              { label: "Test-Anruf durchführen", done: false },
               { label: "Assistent aktivieren", done: false },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3">
@@ -327,12 +366,34 @@ export default function OnboardingClient({ locale }: Props) {
               </div>
             ))}
           </div>
+          {checkoutError && (
+            <p role="alert" className="text-sm text-red-600 mb-3">{checkoutError}</p>
+          )}
           <div className="flex flex-col gap-3">
+            {checkoutable ? (
+              <button
+                type="button"
+                onClick={handleCheckout}
+                disabled={checkoutLoading}
+                className="w-full bg-primary text-white py-3 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors disabled:opacity-60 inline-flex items-center justify-center gap-2"
+              >
+                {checkoutLoading && <Loader2 className="w-4 h-4 animate-spin" aria-hidden />}
+                Weiter zur Zahlung
+              </button>
+            ) : (
+              <a
+                href={`/${locale}/preise`}
+                className="w-full bg-primary text-white py-3 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors text-center"
+              >
+                Tarif wählen
+              </a>
+            )}
             <button
+              type="button"
               onClick={() => router.push(`/${locale}/dashboard`)}
-              className="w-full bg-primary text-white py-3 rounded-lg font-semibold text-sm hover:bg-primary/90 transition-colors"
+              className="w-full border border-slate-200 text-slate-700 py-3 rounded-lg font-medium text-sm hover:bg-slate-50 transition-colors"
             >
-              Zum Dashboard
+              Zum Dashboard (später bezahlen)
             </button>
             <a
               href={`mailto:support@sailly.de?subject=Einrichtungsfragen – ${companyName}`}

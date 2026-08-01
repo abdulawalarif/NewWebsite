@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { sanitizeNextPath, defaultPostAuthPath } from "@/lib/auth/safe-redirect";
+import { parsePlanKey, setPlanCookieClient } from "@/lib/auth/plan-cookie";
+import type { PricingPlanKey } from "@/lib/pricing-plans";
 
 type Tab = "login" | "register";
 type FieldErrors = Record<string, string>;
@@ -12,6 +15,10 @@ type FieldErrors = Record<string, string>;
 interface LoginClientProps {
   locale: string;
 }
+
+const isMockAuth =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_AUTH_MODE === "mock";
 
 function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -55,6 +62,7 @@ export default function LoginClient({ locale }: LoginClientProps) {
   const [magicEmail, setMagicEmail] = useState("");
   const [magicLinkLoading, setMagicLinkLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [mockVerifyUrl, setMockVerifyUrl] = useState<string | null>(null);
 
   // Register form state
   const [firstName, setFirstName] = useState("");
@@ -68,6 +76,18 @@ export default function LoginClient({ locale }: LoginClientProps) {
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerError, setRegisterError] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [selectedPlan, setSelectedPlan] = useState<PricingPlanKey | null>(
+    () => parsePlanKey(searchParams.get("plan"))
+  );
+
+  // Persist ?plan= so OAuth / magic-link round-trips keep the choice
+  useEffect(() => {
+    const plan = parsePlanKey(searchParams.get("plan"));
+    if (plan) {
+      setSelectedPlan(plan);
+      setPlanCookieClient(plan);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setErrors({});
@@ -122,14 +142,10 @@ export default function LoginClient({ locale }: LoginClientProps) {
           .eq("user_id", data.user.id)
           .maybeSingle();
 
-        const next = searchParams.get("next");
-        if (next) {
-          window.location.replace(next);
-        } else if (config) {
-          window.location.replace(`/${locale}/dashboard`);
-        } else {
-          window.location.replace(`/${locale}/onboarding`);
-        }
+        const safeNext = sanitizeNextPath(searchParams.get("next"), locale);
+        const destination =
+          safeNext ?? defaultPostAuthPath(locale, Boolean(config));
+        window.location.replace(destination);
       }
     } catch {
       setLoginError("Netzwerkfehler. Bitte erneut versuchen.");
@@ -139,13 +155,16 @@ export default function LoginClient({ locale }: LoginClientProps) {
   };
 
   // ── Google OAuth ──
+  // Callback (+ middleware) decide onboarding vs dashboard from agent_configs.
+  // next is only a hint; incomplete users never stay on dashboard.
   const handleGoogleLogin = async () => {
     setLoginError("");
     setRegisterError("");
+    if (selectedPlan) setPlanCookieClient(selectedPlan);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/${locale}/onboarding`,
+        redirectTo: `${window.location.origin}/auth/callback?next=/${locale}/dashboard`,
         queryParams: {
           prompt: "select_account",
         },
@@ -169,17 +188,22 @@ export default function LoginClient({ locale }: LoginClientProps) {
       return;
     }
     setMagicLinkLoading(true);
+    setMockVerifyUrl(null);
+    if (selectedPlan) setPlanCookieClient(selectedPlan);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const result = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback?next=/${locale}/dashboard`,
         },
       });
-      if (error) {
+      if (result.error) {
         setErrors({ magicLink: "Fehler beim Senden. Bitte erneut versuchen." });
       } else {
         setMagicLinkSent(true);
+        // Mock mode returns a clickable verify URL instead of sending email
+        const mockUrl = (result as { mockVerifyUrl?: string }).mockVerifyUrl;
+        if (mockUrl) setMockVerifyUrl(mockUrl);
       }
     } finally {
       setMagicLinkLoading(false);
@@ -234,6 +258,7 @@ export default function LoginClient({ locale }: LoginClientProps) {
       }
 
       if (data.user) {
+        if (selectedPlan) setPlanCookieClient(selectedPlan);
         // Create customer_profiles row
         await supabase.from("customer_profiles").insert({
           id: data.user.id,
@@ -241,6 +266,7 @@ export default function LoginClient({ locale }: LoginClientProps) {
           first_name: firstName,
           last_name: lastName,
           display_name: `${firstName} ${lastName}`.trim(),
+          selected_plan: selectedPlan,
         });
 
         // If email confirmation is disabled, session is active immediately
@@ -265,6 +291,14 @@ export default function LoginClient({ locale }: LoginClientProps) {
 
   return (
     <div className="min-h-[calc(100dvh-5rem)] flex flex-col items-center justify-center px-4 py-12 bg-gradient-soft">
+      {isMockAuth && (
+        <div className="w-full max-w-md mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900 space-y-1">
+          <p className="font-semibold">Mock-Auth aktiv</p>
+          <p>new@sailly.test / password123 → Onboarding</p>
+          <p>draft@sailly.test / password123 → Onboarding (Entwurf)</p>
+          <p>done@sailly.test / password123 → Dashboard</p>
+        </div>
+      )}
       {/* Card */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-100">
 
@@ -336,6 +370,14 @@ export default function LoginClient({ locale }: LoginClientProps) {
                     <strong className="text-slate-900">{magicEmail}</strong>{" "}
                     gesendet. Bitte prüfen Sie Ihr Postfach.
                   </p>
+                  {mockVerifyUrl && (
+                    <a
+                      href={mockVerifyUrl}
+                      className="text-sm text-primary hover:underline font-medium"
+                    >
+                      Mock: Magic Link jetzt öffnen →
+                    </a>
+                  )}
                   <button onClick={() => setMagicLinkSent(false)} className="text-sm text-primary hover:underline">
                     Zurück zur Anmeldung
                   </button>
