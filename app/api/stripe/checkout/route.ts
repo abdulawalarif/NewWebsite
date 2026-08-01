@@ -85,27 +85,10 @@ export async function POST(req: NextRequest) {
   const successUrl = `${origin}/${locale}/dashboard?checkout=success`;
   const cancelUrl = `${origin}/${locale}/preise/${plan}?checkout=canceled`;
 
-  // ── Mock Stripe ──
+  // ── Mock Stripe: send user to fake payment page (do not activate yet) ──
   if (isMockStripe()) {
-    const trialEnd = new Date(
-      Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000
-    ).toISOString();
-    const billing = createBillingAdminClient(user.id);
-    const { error } = await upsertSubscription(billing as never, {
-      user_id: user.id,
-      plan_key: plan,
-      stripe_customer_id: `cus_mock_${user.id}`,
-      stripe_subscription_id: `sub_mock_${user.id}_${Date.now()}`,
-      status: "trialing",
-      current_period_end: trialEnd,
-      trial_end: trialEnd,
-      cancel_at_period_end: false,
-    });
-    if (error) {
-      return NextResponse.json({ error }, { status: 500 });
-    }
-    const mockSuccess = `${origin}/${locale}/dashboard?checkout=mock_success`;
-    const res = NextResponse.json({ url: mockSuccess, mock: true });
+    const mockCheckoutUrl = `${origin}/${locale}/checkout?plan=${plan}`;
+    const res = NextResponse.json({ url: mockCheckoutUrl, mock: true });
     res.cookies.set(PLAN_COOKIE, plan, {
       path: "/",
       maxAge: 60 * 60 * 24 * 30,

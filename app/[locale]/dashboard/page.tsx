@@ -9,6 +9,7 @@ import AudioValidationSection from "./audio-validation-section";
 import LastCallsSection from "./last-calls-section";
 import TestCallButton from "./test-call-button";
 import BillingActions from "./billing-actions";
+import ContractEmailPreview from "./contract-email-preview";
 
 export const metadata: Metadata = {
   title: "Dashboard – Sailly",
@@ -36,7 +37,7 @@ export default async function DashboardPage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ checkout?: string; portal?: string }>;
+  searchParams: Promise<{ checkout?: string; portal?: string; email?: string }>;
 }) {
   const { locale } = await params;
   const qs = await searchParams;
@@ -121,7 +122,13 @@ export default async function DashboardPage({
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             Zahlung erfolgreich — Ihr Abo ist aktiv
             {qs.checkout === "mock_success" ? " (Mock)." : "."}
+            {qs.email === "1"
+              ? " Die Vertrags-/Bestätigungs-E-Mail liegt in der Mock-Outbox."
+              : ""}
           </div>
+        )}
+        {qs.checkout === "mock_success" && qs.email === "1" && (
+          <ContractEmailPreview />
         )}
         {qs.portal === "mock" && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">

@@ -420,13 +420,54 @@ async function httpTests() {
   });
   const checkoutJson = await checkout.json();
   assert(
-    "mock checkout returns redirect url",
+    "mock checkout returns payment page url",
     checkout.ok &&
       typeof checkoutJson.url === "string" &&
-      checkoutJson.url.includes("checkout=mock_success"),
+      checkoutJson.url.includes("/checkout"),
     JSON.stringify(checkoutJson)
   );
   assert("mock checkout flagged", checkoutJson.mock === true);
+
+  const mockPay = await fetch(`${BASE}/api/stripe/mock-pay`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(billCookie ? { cookie: `${billCookie}; sailly_selected_plan=main` } : {}),
+    },
+    body: JSON.stringify({
+      locale: "de",
+      plan: "main",
+      cardNumber: "4242424242424242",
+    }),
+  });
+  const mockPayJson = await mockPay.json();
+  assert(
+    "mock pay succeeds",
+    mockPay.ok &&
+      typeof mockPayJson.url === "string" &&
+      mockPayJson.url.includes("checkout=mock_success"),
+    JSON.stringify(mockPayJson)
+  );
+  assert(
+    "contract email stubbed",
+    Boolean(mockPayJson.email?.subject) &&
+      String(mockPayJson.email.subject).includes("Sailly"),
+    JSON.stringify(mockPayJson.email)
+  );
+
+  const decline = await fetch(`${BASE}/api/stripe/mock-pay`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(billCookie ? { cookie: billCookie } : {}),
+    },
+    body: JSON.stringify({
+      locale: "de",
+      plan: "main",
+      cardNumber: "4000000000000002",
+    }),
+  });
+  assert("mock pay declines *0002 card", decline.status === 402);
 
   const portal = await fetch(`${BASE}/api/stripe/portal`, {
     method: "POST",

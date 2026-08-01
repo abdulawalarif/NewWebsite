@@ -80,11 +80,12 @@ export async function middleware(request: NextRequest) {
     rest === "/onboarding" || rest.startsWith("/onboarding/");
   const isDashboard =
     rest === "/dashboard" || rest.startsWith("/dashboard/");
+  const isCheckout = rest === "/checkout" || rest.startsWith("/checkout/");
   const isEditOnboarding =
     isOnboarding && request.nextUrl.searchParams.get("edit") === "true";
 
   // Protected routes: require auth
-  if ((isDashboard || isOnboarding) && !user) {
+  if ((isDashboard || isOnboarding || isCheckout) && !user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = `/${locale}/login`;
     loginUrl.search = "";

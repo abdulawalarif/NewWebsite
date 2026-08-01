@@ -4,6 +4,7 @@ import type {
   OnboardingDraft,
   Subscription,
 } from "@/types/onboarding";
+import type { OutboundEmail } from "@/lib/stripe/emails";
 
 export type MockUser = {
   id: string;
@@ -26,6 +27,7 @@ type MockStore = {
   drafts: Map<string, OnboardingDraft>;
   agentConfigs: Map<string, AgentConfig>;
   subscriptions: Map<string, Subscription>;
+  emails: OutboundEmail[];
 };
 
 const STORE_KEY = "__sailly_mock_auth_store__";
@@ -41,6 +43,7 @@ function seedStore(): MockStore {
   const drafts = new Map<string, OnboardingDraft>();
   const agentConfigs = new Map<string, AgentConfig>();
   const subscriptions = new Map<string, Subscription>();
+  const emails: OutboundEmail[] = [];
 
   const seedUsers: Array<{
     id: string;
@@ -184,7 +187,7 @@ function seedStore(): MockStore {
     }
   }
 
-  return { users, usersByEmail, profiles, drafts, agentConfigs, subscriptions };
+  return { users, usersByEmail, profiles, drafts, agentConfigs, subscriptions, emails };
 }
 
 export function getMockStore(): MockStore {
@@ -197,7 +200,31 @@ export function getMockStore(): MockStore {
   if (!store.subscriptions) {
     store.subscriptions = new Map();
   }
+  if (!store.emails) {
+    store.emails = [];
+  }
   return store;
+}
+
+export function pushMockEmail(email: Omit<OutboundEmail, "id" | "created_at">): OutboundEmail {
+  const store = getMockStore();
+  const row: OutboundEmail = {
+    ...email,
+    id: `email-${crypto.randomUUID()}`,
+    created_at: new Date().toISOString(),
+  };
+  store.emails.unshift(row);
+  // keep last 50
+  if (store.emails.length > 50) store.emails.length = 50;
+  console.info("[mock-email]", row.type, "→", row.to, row.subject);
+  return row;
+}
+
+export function listMockEmailsFor(to?: string): OutboundEmail[] {
+  const emails = getMockStore().emails ?? [];
+  if (!to) return emails;
+  const key = to.toLowerCase();
+  return emails.filter((e) => e.to.toLowerCase() === key);
 }
 
 export function resetMockStore() {
