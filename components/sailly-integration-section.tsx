@@ -465,11 +465,15 @@ export function SaillyIntegrationSection({ className }: SaillyIntegrationSection
             <ul className="space-y-2 text-sm text-gray-600">
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                SOC 2 Type II Certified
+                DSGVO-konform
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                GDPR & HIPAA Compliant
+                ISO 27001 Informationssicherheit
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                EU AI Act konform
               </li>
               <li className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
