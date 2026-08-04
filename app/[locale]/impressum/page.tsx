@@ -1,7 +1,6 @@
 import { getDictionary } from "@/lib/dictionary";
 import { LegalLayout, LegalSection } from "@/components/sierra/legal-layout";
 
-// NOTE FOR REVIEW (Chili): verify [Inhaber-Name] and phone number before go-live.
 const CONTENT: Record<"de" | "en", { title: string; updated: string; sections: LegalSection[] }> = {
   de: {
     title: "Impressum",
@@ -10,8 +9,12 @@ const CONTENT: Record<"de" | "en", { title: string; updated: string; sections: L
       {
         heading: "Anbieter",
         paragraphs: [
-          "Sailly\nInhaber: [Inhaber-Name]\nAlter Weg 70\n53773 Hennef\nDeutschland",
+          "Sailly\nInhaber: Charles Akey\nGeschäftsführer: Charles Akey\nAm Hauptbahnhof 6\n53111 Bonn\nDeutschland",
         ],
+      },
+      {
+        heading: "Sitz der Gesellschaft",
+        paragraphs: ["Bonn\nAm Hauptbahnhof 6, 53111 Bonn"],
       },
       {
         heading: "Kontakt",
@@ -25,7 +28,7 @@ const CONTENT: Record<"de" | "en", { title: string; updated: string; sections: L
       },
       {
         heading: "Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV",
-        paragraphs: ["[Inhaber-Name], Alter Weg 70, 53773 Hennef"],
+        paragraphs: ["Charles Akey, Am Hauptbahnhof 6, 53111 Bonn"],
       },
       {
         heading: "EU-Streitschlichtung",
@@ -48,8 +51,12 @@ const CONTENT: Record<"de" | "en", { title: string; updated: string; sections: L
       {
         heading: "Provider",
         paragraphs: [
-          "Sailly\nOwner: [Owner name]\nAlter Weg 70\n53773 Hennef\nGermany",
+          "Sailly\nOwner: Charles Akey\nManaging Director: Charles Akey\nAm Hauptbahnhof 6\n53111 Bonn\nGermany",
         ],
+      },
+      {
+        heading: "Registered office",
+        paragraphs: ["Bonn\nAm Hauptbahnhof 6, 53111 Bonn"],
       },
       {
         heading: "Contact",
@@ -61,7 +68,7 @@ const CONTENT: Record<"de" | "en", { title: string; updated: string; sections: L
       },
       {
         heading: "Responsible for content pursuant to Sec. 18 (2) MStV",
-        paragraphs: ["[Owner name], Alter Weg 70, 53773 Hennef, Germany"],
+        paragraphs: ["Charles Akey, Am Hauptbahnhof 6, 53111 Bonn, Germany"],
       },
       {
         heading: "EU Dispute Resolution",
